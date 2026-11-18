@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>You’re invited!</title>
+<meta name="description" content="A message for you this Christmas.">
+<meta property="og:title" content="You’re invited!">
+<meta property="og:description" content="A message for you this Christmas.">
+<meta property="og:image" content="https://brodyespiritu.github.io/youre-invited/poster.jpg">
+<meta property="og:url" content="https://brodyespiritu.github.io/youre-invited/">
+<meta property="og:type" content="video.other">
+<meta name="theme-color" content="#000000">
+<link rel="preload" href="poster.jpg" as="image">
+<style>
+  :root { --cream: #eeeadf; --ink: #1b0b08; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; background: #000; overflow: hidden; }
+  body { font: 600 17px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
+
+  /* The still, blurred and dimmed, fills whatever the video doesn't cover. */
+  .backdrop { position: fixed; inset: -10%; background: url(poster.jpg) center / cover; filter: blur(40px) brightness(.4); }
+  video { position: fixed; inset: 0; width: 100%; height: 100%; height: 100dvh; object-fit: contain; }
+
+  button { font: inherit; border: 0; cursor: pointer; color: var(--ink); }
+  .pill {
+    position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 999px;
+    background: var(--cream); box-shadow: 0 8px 30px rgba(0,0,0,.35);
+    animation: nudge 2.4s ease-in-out infinite;
+  }
+  .center {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    display: flex; flex-direction: column; align-items: center; gap: 12px; background: none; color: var(--cream);
+    text-shadow: 0 2px 12px rgba(0,0,0,.6);
+  }
+  .center .disc { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; background: var(--cream); color: var(--ink); box-shadow: 0 8px 30px rgba(0,0,0,.35); }
+  svg { display: block; }
+  [hidden] { display: none !important; }
+  @keyframes nudge { 0%, 100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.05); } }
+  @media (prefers-reduced-motion: reduce) { .pill { animation: none; } }
+</style>
+</head>
+<body>
+<div class="backdrop" aria-hidden="true"></div>
+<video id="v" src="invite.mp4" poster="poster.jpg" autoplay muted loop playsinline preload="auto"></video>
+
+<button class="pill" id="sound" aria-label="Play with sound">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="m22 9-6 6M16 9l6 6"/>
+  </svg>
+  Tap for sound
+</button>
+
+<!-- At the bottom, so it doesn't cover the logo the video ends on. -->
+<button class="pill" id="again" hidden aria-label="Watch again">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>
+  </svg>
+  Watch again
+</button>
+
+<button class="center" id="play" hidden aria-label="Play">
+  <span class="disc">
+    <svg width="34" height="34" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>
+  </span>
+  <span id="playLabel">Tap to play</span>
+</button>
+
+<script>
+  const v = document.getElementById('v');
+  const sound = document.getElementById('sound');
+  const play = document.getElementById('play');
+  const playLabel = document.getElementById('playLabel');
+  const again = document.getElementById('again');
+  let listening = false; // true once they've chosen to watch with sound
+
+  function showPlay(label) { playLabel.textContent = label; play.hidden = false; }
+
+  // From the top, with sound.
+  function watch() {
+    listening = true;
+    sound.hidden = true; play.hidden = true; again.hidden = true;
+    v.loop = false; v.muted = false; v.currentTime = 0;
+    v.play().catch(() => showPlay('Tap to play'));
+  }
+
+  // Phones only start a video by itself when it's muted; some (e.g. Low Power Mode) not even then.
+  v.play().catch(() => { sound.hidden = true; showPlay('Tap to play'); });
+
+  sound.addEventListener('click', (e) => { e.stopPropagation(); watch(); });
+  again.addEventListener('click', (e) => { e.stopPropagation(); watch(); });
+  play.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!listening) watch();
+    else { play.hidden = true; v.play(); }
+  });
+  // Anywhere on the page: the first tap turns the sound on; after that it pauses and resumes.
+  document.addEventListener('click', () => {
+    if (!listening || v.ended) return watch();
+    if (v.paused) { play.hidden = true; v.play(); } else { v.pause(); showPlay('Paused'); }
+  });
+  v.addEventListener('ended', () => { if (listening) again.hidden = false; });
+</script>
+</body>
+</html>
