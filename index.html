@@ -12,7 +12,9 @@
 <meta property="og:type" content="video.other">
 <meta name="theme-color" content="#000000">
 <link rel="preload" href="poster.jpg" as="image">
-<style>
+<!-- The visit form lives in Pillar (bethesda.rsvp); warm the way there so it opens quickly. -->
+<link rel="preconnect" href="https://www.bethesda.rsvp">
+<link rel="preconnect" href="https://dxiqhequrfdodeyqzowz.supabase.co" crossorigin><style>
   :root { --cream: #eeeadf; --ink: #1b0b08; }
   * { box-sizing: border-box; margin: 0; }
   html, body { height: 100%; background: #000; overflow: hidden; }
@@ -26,9 +28,14 @@
   .pill {
     position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     display: flex; align-items: center; gap: 10px; padding: 14px 22px; border-radius: 999px;
-    background: var(--cream); box-shadow: 0 8px 30px rgba(0,0,0,.35);
-    animation: nudge 2.4s ease-in-out infinite;
+    background: var(--cream); box-shadow: 0 8px 30px rgba(0,0,0,.35); white-space: nowrap;
   }
+  /* Plan your visit holds the bottom the whole time; the passing prompts (sound, watch again) sit at the top. */
+  .pill.top { top: calc(18px + env(safe-area-inset-top)); bottom: auto; }
+  #sound { animation: nudge 2.4s ease-in-out infinite; }
+  /* Pillar's blue. */
+  #plan { background: #006BFF; color: #fff; box-shadow: 0 8px 30px rgba(0,40,120,.45); }
+  #plan:active { background: #0057D9; }
   .center {
     position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
     display: flex; flex-direction: column; align-items: center; gap: 12px; background: none; color: var(--cream);
@@ -38,26 +45,51 @@
   svg { display: block; }
   [hidden] { display: none !important; }
   @keyframes nudge { 0%, 100% { transform: translateX(-50%) scale(1); } 50% { transform: translateX(-50%) scale(1.05); } }
-  @media (prefers-reduced-motion: reduce) { .pill { animation: none; } }
+
+  /* Pillar's Plan your visit form, slid up over the video. Its own backdrop shows while it loads,
+     so the form appears on the same room it sits on. Closing keeps it, answers and all. */
+  .sheet {
+    position: fixed; inset: 0; z-index: 10;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    background: #9E2A1C url(https://www.bethesda.rsvp/christmas/room-blur.jpg) 66% center / cover no-repeat;
+    transform: translateY(100%); visibility: hidden;
+    transition: transform .38s cubic-bezier(.2,.8,.2,1), visibility 0s .38s;
+  }
+  .sheet.open { transform: none; visibility: visible; transition: transform .38s cubic-bezier(.2,.8,.2,1); }
+  .sheet iframe { display: block; width: 100%; height: 100%; border: 0; }
+  /* Same as the form's own back button, in the corner the form leaves free. */
+  .sheet .close {
+    position: absolute; top: calc(16px + env(safe-area-inset-top)); right: 16px;
+    width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(254,250,238,.14); color: #FEFAEE;
+  }
+  @media (prefers-reduced-motion: reduce) { #sound { animation: none; } .sheet, .sheet.open { transition: none; } }
 </style>
 </head>
 <body>
 <div class="backdrop" aria-hidden="true"></div>
 <video id="v" src="invite.mp4" poster="poster.jpg" autoplay muted loop playsinline preload="auto"></video>
 
-<button class="pill" id="sound" aria-label="Play with sound">
+<button class="pill top" id="sound" aria-label="Play with sound">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="m22 9-6 6M16 9l6 6"/>
   </svg>
   Tap for sound
 </button>
 
-<!-- At the bottom, so it doesn't cover the logo the video ends on. -->
-<button class="pill" id="again" hidden aria-label="Watch again">
+<!-- Off the middle, so it doesn't cover the logo the video ends on. -->
+<button class="pill top" id="again" hidden aria-label="Watch again">
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>
   </svg>
   Watch again
+</button>
+
+<button class="pill" id="plan" aria-label="Plan your visit">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="3" y="5" width="18" height="16" rx="2.5"/><path d="M3 10h18M8 3v4M16 3v4"/>
+  </svg>
+  Plan your visit
 </button>
 
 <button class="center" id="play" hidden aria-label="Play">
@@ -66,6 +98,12 @@
   </span>
   <span id="playLabel">Tap to play</span>
 </button>
+
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Plan your visit">
+  <button class="close" id="close" aria-label="Close">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+  </button>
+</div>
 
 <script>
   const v = document.getElementById('v');
@@ -90,6 +128,37 @@
 
   sound.addEventListener('click', (e) => { e.stopPropagation(); watch(); });
   again.addEventListener('click', (e) => { e.stopPropagation(); watch(); });
+  // Plan your visit: Pillar's form over the video, which waits while they fill it in.
+  const FORM = 'https://www.bethesda.rsvp/form/plan-your-visit';
+  const sheet = document.getElementById('sheet');
+  const close = document.getElementById('close');
+  let resumeLoop = false; // the silent loop was running before the form opened
+  function openForm() {
+    // Fetched on the first tap only, so the video has the connection to itself until then.
+    if (!sheet.querySelector('iframe')) {
+      const f = document.createElement('iframe');
+      f.src = FORM; f.title = 'Plan your visit'; f.allow = 'autofill';
+      sheet.prepend(f);
+    }
+    if (listening && !v.paused) { v.pause(); showPlay('Paused'); }
+    resumeLoop = !listening && !v.paused;
+    if (resumeLoop) v.pause();
+    sheet.classList.add('open');
+    // So a phone's back button closes the form rather than leaving the invite.
+    history.pushState({ form: true }, '');
+    close.focus({ preventScroll: true });
+  }
+  function closeForm() {
+    if (!sheet.classList.contains('open')) return;
+    sheet.classList.remove('open');
+    if (resumeLoop) v.play().catch(() => {});
+    document.getElementById('plan').focus({ preventScroll: true });
+  }
+  document.getElementById('plan').addEventListener('click', (e) => { e.stopPropagation(); openForm(); });
+  close.addEventListener('click', () => history.state?.form ? history.back() : closeForm());
+  window.addEventListener('popstate', closeForm);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && sheet.classList.contains('open')) close.click(); });
+  sheet.addEventListener('click', (e) => e.stopPropagation());
   play.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!listening) watch();
